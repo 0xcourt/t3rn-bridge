@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Bridge Test</title>
+  <title>Bridge to Base Sepolia</title>
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
   <style>
     body { background: #111; color: #eee; font-family: monospace; padding: 20px; max-width: 600px; margin: auto; }
     input, button { padding: 10px; width: 100%; margin: 10px 0; box-sizing: border-box; }
-    button { background: #28a745; color: #fff; border: none; }
+    button { background: #28a745; color: #fff; border: none; cursor: pointer; }
     #log { background: #222; border: 1px solid #444; padding: 10px; height: 250px; overflow-y: auto; white-space: pre-wrap; }
   </style>
 </head>
@@ -16,7 +16,7 @@
   <input type="number" id="toChainId" value="84532" placeholder="To Chain ID" />
   <input type="text" id="amount" placeholder="Amount in ETH" />
   <input type="text" id="recipient" placeholder="Recipient Address (0x...)" />
-  <button onclick="bridge()">Bridge</button>
+  <button id="bridgeBtn">Bridge</button>
 
   <div id="log"></div>
 
@@ -25,6 +25,7 @@
       const el = document.getElementById("log");
       el.textContent += [${new Date().toLocaleTimeString()}] ${msg}\n;
       el.scrollTop = el.scrollHeight;
+      console.log(msg);
     };
 
     async function bridge() {
@@ -45,7 +46,8 @@
         const wallet = new ethers.Wallet(privateKey, provider);
         log("Wallet terhubung: " + wallet.address);
 
-        const proxyAddress = "0xb6Def636914Ae60173d9007E732684a9eEDEF26E"; // transparan proxy
+        const proxyAddress = "0xb6Def636914Ae60173d9007E732684a9eEDEF26E";
+
         const abi = [{
           "inputs": [
             { "internalType": "uint256", "name": "toChainId", "type": "uint256" },
@@ -68,10 +70,15 @@
         await tx.wait();
         log("Transaksi berhasil dikonfirmasi.");
       } catch (err) {
-        log("ERROR: " + (err.message || err));
+        log("ERROR:");
+        log(err.message || String(err));
         console.error(err);
       }
     }
+
+    window.onload = () => {
+      document.getElementById("bridgeBtn").addEventListener("click", bridge);
+    };
   </script>
 </body>
 </html>
