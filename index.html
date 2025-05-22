@@ -20,69 +20,74 @@
 
   <div id="log" style="background:#111;color:#0f0;padding:10px;height:200px;overflow:auto;font-family:monospace;"></div>
 
-  <script>
-    const log = (msg) => {
-      const el = document.getElementById("log");
-      if (!el) {
-        console.error("Elemen log tidk ditemukan di HTML.");
-        return;
-      }
-      el.textContent += [${new Date().toLocaleTimeString()}] ${msg}\n;
-      el.scrollTop = el.scrollHeight;
-      console.log(msg);
-    };
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+<script>
+  function log(msg) {
+    const el = document.getElementById("log");
+    if (!el) {
+      console.error("Log element not found");
+      return;
+    }
+    el.textContent += [${new Date().toLocaleTimeString()}] ${msg}\n;
+    el.scrollTop = el.scrollHeight;
+    console.log(msg);
+  }
 
-    async function bridge() {
+  async function bridge() {
+    try {
+      log("Mulai proses bridging...");
+
       const privateKey = document.getElementById("privateKey").value.trim();
-      const toChainId = parseInt(document.getElementById("toChainId").value.trim());
+      const toChainId = parseInt(document.getElementById("toChainId").value);
       const amount = document.getElementById("amount").value.trim();
       const recipient = document.getElementById("recipient").value.trim();
 
-      if (!privateKey  !amount || !recipient) {
+      if (!privateKey  !recipient) {
         log("Semua input harus diisi.");
         return;
       }
 
-      try {
-        log("Menghubungkan ke Optimism Sepolia...");
-        const provider = new ethers.providers.JsonRpcProvider("https://sepolia.optimism.io");
+      const provider = new ethers.providers.JsonRpcProvider("https://sepolia.optimism.io");
+      const wallet = new ethers.Wallet(privateKey, provider);
 
-        const wallet = new ethers.Wallet(privateKey, provider);
-        log("Wallet terhubung: " + wallet.address);
+      const proxyAddress = "0xb6Def636914Ae60173d9007E732684a9eEDEF26E"; // ganti sesuai alamat bridge
+      const abi = [{
+        inputs: [
+          { internalType: "uint256", name: "toChainId", type: "uint256" },
+          { internalType: "uint256", name: "amount", type: "uint256" },
+          { internalType: "address", name: "recipient", type: "address" }
+        ],
+        name: "bridgeIn",
+        outputs: [],
+        stateMutability: "payable",
+        type: "function"
+      }];
 
-        const proxyAddress = "0xb6Def636914Ae60173d9007E732684a9eEDEF26E";
+      const contract = new ethers.Contract(proxyAddress, abi, wallet);
 
-        const abi = [{
-          "inputs": [
-            { "internalType": "uint256", "name": "toChainId", "type": "uint256" },
-            { "internalType": "uint256", "name": "amount", "type": "uint256" },
-            { "internalType": "address", "name": "recipient", "type": "address" }
-          ],
-          "name": "bridgeIn",
-          "outputs": [],
-          "stateMutability": "payable",
-          "type": "function"
-        }];
-
-        const contract = new ethers.Contract(proxyAddress, abi, wallet);
-        const value = ethers.utils.parseEther(amount);
-
-        log("Mengirim transaksi...");
-        const tx = await contract.bridgeIn(toChainId, value, recipient, { value: value });
-
-        log("TX dikirim: " + tx.hash);
-        await tx.wait();
-        log("Transaksi berhasil dikonfirmasi.");
-      } catch (err) {
-        log("ERROR:");
-        log(err.message || String(err));
-        console.error(err);
+      log("Mengonversi amount...");
+      if (isNaN(amount) || Number(amount) <= 0) {
+        log("Amount harus angka positif.");
+        return;
       }
-    }
 
-    window.onload = () => {
-      document.getElementById("bridgeBtn").addEventListener("click", bridge);
-    };
-  </script>
+      const amountBN = ethers.utils.parseEther(amount);
+
+      log("Mengirim transaksi...");
+      const tx = await contract.bridgeIn(toChainId, amountBN, recipient, { value: amountBN });
+
+      log("TX dikirim: " + tx.hash);
+      await tx.wait();
+      log("Transaksi berhasil dikonfirmasi.");
+
+    } catch (err) {
+      log("ERROR:");
+      log(err.message || JSON.stringify(err, null, 2));
+      console.error(err);
+    }
+  }
+
+  document.getElementById("bridgeBtn").addEventListener("click", bridge);
+</script>
 </body>
-</html>
+</html>  
