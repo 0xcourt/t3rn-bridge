@@ -23,6 +23,10 @@
   <script>
     const log = (msg) => {
       const el = document.getElementById("log");
+      if (!el) {
+        console.error("Elemen log tidk ditemukan di HTML.");
+        return;
+      }
       el.textContent += [${new Date().toLocaleTimeString()}] ${msg}\n;
       el.scrollTop = el.scrollHeight;
       console.log(msg);
