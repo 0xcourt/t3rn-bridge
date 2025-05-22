@@ -1,21 +1,32 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Bridge t3rn UI</title>
+  <title>Bridge ETH to Base Sepolia</title>
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
   <style>
-    body { font-family: sans-serif; max-width: 600px; margin: 40px auto; }
-    input, button { padding: 10px; margin: 5px 0; width: 100%; }
+    body { font-family: sans-serif; max-width: 600px; margin: 40px auto; background: #111; color: #eee; }
+    input, button { padding: 10px; margin: 5px 0; width: 100%; box-sizing: border-box; }
     button { background: #4CAF50; color: white; border: none; cursor: pointer; }
+    #log {
+      background: #222;
+      padding: 15px;
+      border: 1px solid #555;
+      height: 250px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      font-size: 14px;
+      margin-top: 10px;
+    }
   </style>
 </head>
 <body>
   <h2>Bridge ETH to Base Sepolia</h2>
-  <label>Private Key:</label>
-  <input type="password" id="privateKey" placeholder="0x. . ." />
 
-  <label>label To Chain ID:</label>
-  <input type="number" id="toChainId" placeholder="84532" value="84532" />
+  <label>Private Key:</label>
+  <input type="password" id="privateKey" placeholder="0x..." />
+
+  <label>To Chain ID:</label>
+  <input type="number" id="toChainId" value="84532" />
 
   <label>Amount (ETH):</label>
   <input type="text" id="amount" placeholder="0.01" />
@@ -25,58 +36,67 @@
 
   <button onclick="bridge()">Bridge Now</button>
 
-  <p id="status"></p>
+  <h3>Log Output:</h3>
+  <div id="log"></div>
 
   <script>
-    const proxyAddress = "0xb6Def636914Ae60173d9007E732684a9eEDEF26E"; // Ganti dengan alamat proxy
-    const rpcUrl = "https://sepolia.optimism.io" 
-    const abi = [
-      // Ganti ini dengan ABI asli dari implementation contract
-      {
-        "inputs": [
-          { "internalType": "uint256", "name": "toChainId", "type": "uint256" },
-          { "internalType": "uint256", "name": "amount", "type": "uint256" },
-          { "internalType": "address", "name": "recipient", "type": "address" }
-        ],
-        "name": "bridgeIn",
-        "outputs": [],
-        "stateMutability": "payable",
-        "type": "function"
-      }
-    ];
+    const log = (msg) => {
+      const logBox = document.getElementById("log");
+      logBox.innerText += [${new Date().toLocaleTimeString()}] ${msg}\n;
+      logBox.scrollTop = logBox.scrollHeight;
+    };
 
     async function bridge() {
-      const status = document.getElementById("status");
-      const pk = document.getElementById("privateKey").value.trim();
-      const toChainId = document.getElementById("toChainId").value;
-      const amountEth = document.getElementById("amount").value;
-      const recipient = document.getElementById("recipient").value;
+      const privateKey = document.getElementById("privateKey").value.trim();
+      const toChainId = document.getElementById("toChainId").value.trim();
+      const amount = document.getElementById("amount").value.trim();
+      const recipient = document.getElementById("recipient").value.trim();
 
-      if (!pk  !amountEth || !recipient) {
-        return status.innerText = "Semua kolom wajib diisi.";
+      if (!privateKey  !amount || !recipient) {
+        log("Error: Semua field harus diisi.");
+        return;
       }
 
       try {
-        const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
-        const wallet = new ethers.Wallet(pk, provider);
+        log("Menghubungkan ke jaringan OP Sepolia...");
+        const provider = new ethers.providers.JsonRpcProvider("https://sepolia.optimism.io");
+        const wallet = new ethers.Wallet(privateKey, provider);
+
+        const proxyAddress = "0xb6Def636914Ae60173d9007E732684a9eEDEF26E"; // alamat dari transaksi yang kamu kasih
+        const abi = [
+          {
+            "inputs": [
+              { "internalType": "uint256", "name": "toChainId", "type": "uint256" },
+              { "internalType": "uint256", "name": "amount", "type": "uint256" },
+              { "internalType": "address", "name": "recipient", "type": "address" }
+            ],
+            "name": "bridgeIn",
+            "outputs": [],
+            "stateMutability": "payable",
+            "type": "function"
+          }
+        ];
 
         const contract = new ethers.Contract(proxyAddress, abi, wallet);
-        const amountWei = ethers.utils.parseEther(amountEth);
+        const value = ethers.utils.parseEther(amount);
 
-        status.innerText = "Mengirim transaksi...";
+        log("Mempersiapkan transaksi...");
         const tx = await contract.bridgeIn(
-          toChainId,
-          amountWei,
+          parseInt(toChainId),
+          value,
           recipient,
-          { value: amountWei }
+          { value: value }
         );
 
-        status.innerText = "Tx dikirim: " + tx.hash;
+        log("Transaksi dikirim! Hash: " + tx.hash);
+        log("Menunggu konfirmasi...");
+
         await tx.wait();
-        status.innerText = "Transaksi berhasil dikonfirmasi!";
+
+        log("Sukses! Transaksi terkonfirmasi.");
       } catch (err) {
-        console.error(err);
-        status.innerText = "Gagal: " + (err.message || err);
+        log("Gagal: " + (err.message || err));
+        if (err.stack) log("Stack trace:\n" + err.stack);
       }
     }
   </script>
